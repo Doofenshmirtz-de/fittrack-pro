@@ -14,7 +14,226 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      exercises: {
+        Row: {
+          created_at: string
+          equipment: string | null
+          id: string
+          is_custom: boolean | null
+          muscle_group: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_custom?: boolean | null
+          muscle_group: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_custom?: boolean | null
+          muscle_group?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercises_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      sets: {
+        Row: {
+          completed_at: string
+          exercise_id: string
+          id: string
+          notes: string | null
+          reps: number | null
+          set_number: number
+          weight: number | null
+          workout_id: string
+        }
+        Insert: {
+          completed_at?: string
+          exercise_id: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          set_number: number
+          weight?: number | null
+          workout_id: string
+        }
+        Update: {
+          completed_at?: string
+          exercise_id?: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          set_number?: number
+          weight?: number | null
+          workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sets_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sets_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_exercises: {
+        Row: {
+          exercise_id: string
+          id: string
+          order_index: number
+          target_reps: number | null
+          target_sets: number | null
+          template_id: string
+        }
+        Insert: {
+          exercise_id: string
+          id?: string
+          order_index: number
+          target_reps?: number | null
+          target_sets?: number | null
+          template_id: string
+        }
+        Update: {
+          exercise_id?: string
+          id?: string
+          order_index?: number
+          target_reps?: number | null
+          target_sets?: number | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_exercises_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workout_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_templates: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_templates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workouts: {
+        Row: {
+          completed_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          started_at: string
+          template_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          started_at?: string
+          template_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          started_at?: string
+          template_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workouts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "workout_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
