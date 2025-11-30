@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -14,64 +17,74 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user für Demo-Zwecke
+const MOCK_USER: User = {
+  id: 'mock-user-id',
+  email: 'demo@fittrack.de',
+  username: 'Demo User'
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+    // Prüfe ob Benutzer eingeloggt ist (in localStorage gespeichert)
+    const storedUser = localStorage.getItem('fittrack_user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('fittrack_user');
       }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
+    setLoading(false);
   }, []);
 
   const signUp = async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Simuliere eine kurze Verzögerung
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const { error } = await supabase.auth.signUp({
+    const newUser: User = {
+      id: `user-${Date.now()}`,
       email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: { username }
-      }
-    });
-    return { error };
+      username
+    };
+    
+    setUser(newUser);
+    localStorage.setItem('fittrack_user', JSON.stringify(newUser));
+    navigate('/');
+    
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    // Simuliere eine kurze Verzögerung
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Für Demo: Akzeptiere beliebige Login-Daten
+    const user: User = {
+      id: 'mock-user-id',
       email,
-      password
-    });
+      username: email.split('@')[0]
+    };
     
-    if (!error) {
-      navigate('/');
-    }
+    setUser(user);
+    localStorage.setItem('fittrack_user', JSON.stringify(user));
+    navigate('/');
     
-    return { error };
+    return { error: null };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setUser(null);
+    localStorage.removeItem('fittrack_user');
     navigate('/auth');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,73 +1,212 @@
-# Welcome to your Lovable project
+# FitTrack Pro
 
-## Project info
+Eine moderne Fitness-Tracking Progressive Web App (PWA) zum Verfolgen von Workouts und Trainingsfortschritt.
 
-**URL**: https://lovable.dev/projects/fbe15f4e-f79d-496f-9cc4-3f179fcf2092
+## 🎯 Über das Projekt
 
-## How can I edit this code?
+FitTrack Pro ist eine benutzerfreundliche Fitness-App, die es ermöglicht, Workouts zu erstellen, Trainingseinheiten zu tracken und den eigenen Fortschritt zu visualisieren. Die App funktioniert vollständig offline und speichert alle Daten lokal auf dem Gerät.
 
-There are several ways of editing your application.
+## 🚀 Technologie-Stack
 
-**Use Lovable**
+### Frontend
+- **React 18.3** - Moderne UI-Library
+- **TypeScript 5.8** - Type-sichere Entwicklung
+- **Vite 5.4** - Schneller Build-Tool
+- **Tailwind CSS 3.4** - Utility-first CSS Framework
+- **shadcn/ui** - Hochwertige UI-Komponenten basierend auf Radix UI
+- **React Router v6** - Client-side Routing
+- **TanStack Query v5** - Daten-State-Management
+- **Recharts** - Diagramme und Visualisierungen
+- **PWA Support** - Installierbar und offline-fähig
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fbe15f4e-f79d-496f-9cc4-3f179fcf2092) and start prompting.
+### Datenverwaltung
+- **localStorage** - Lokale Datenspeicherung
+- Alle Daten bleiben auf dem Gerät des Benutzers
 
-Changes made via Lovable will be committed automatically to this repo.
+## ✨ Features
 
-**Use your preferred IDE**
+### Aktuell implementiert
+- ✅ Benutzer-Authentifizierung (lokal)
+- ✅ **Automatisches Zeit-Tracking** (Start/Ende/Dauer mit Live-Timer)
+- ✅ **Körpergewicht-Tracking** pro Workout
+- ✅ **Trainingspläne** erstellen, bearbeiten, starten
+- ✅ **Push/Pull/Leg** vordefinierte Pläne
+- ✅ Workout-Erstellung mit individueller Übungsauswahl
+- ✅ Live-Workout-Tracking mit Sets, Gewicht und Wiederholungen
+- ✅ **Workout-Notizen** auf Workout-Ebene
+- ✅ **Sets löschen** mit Drei-Punkte-Menü
+- ✅ **Workouts bearbeiten & löschen** im Bearbeiten-Modus
+- ✅ Dashboard mit Übersicht über aktive und abgeschlossene Workouts
+- ✅ **Gruppierung nach Monat** mit Trainings-Counter
+- ✅ **Erweiterte Statistiken:**
+  - Gesamtstatistik (Trainings, Dauer, Sets, Reps, Volumen, Durchschnitte)
+  - Übungs-Statistiken (Top 10 mit Volumen, Max-Gewicht)
+  - Kategorien-Statistiken (Muskelgruppen mit Bar Chart)
+- ✅ Persönliche Rekorde pro Übung
+- ✅ 1RM Progression Charts
+- ✅ **Bessere Workout-Cards** mit Übungsliste und Dauer
+- ✅ **Verbessertes Set-Layout** mit kreisförmigen Nummern
+- ✅ 22+ vordefinierte Übungen in 6 Kategorien
+- ✅ Responsive Mobile-First Design
+- ✅ Progressive Web App (PWA) - installierbar
+- ✅ Offline-Funktionalität
+- ✅ Dark/Light Mode Support (via Tailwind)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Übungskategorien
+- Brust (Bankdrücken, Fliegende, etc.)
+- Rücken (Kreuzheben, Klimmzüge, Rudern)
+- Beine (Kniebeugen, Beinpresse, etc.)
+- Schultern (Schulterdrücken, Seitheben)
+- Arme (Bizeps Curls, Trizeps Dips)
+- Core (Planks, Crunches)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📦 Installation & Setup
 
-Follow these steps:
+### Voraussetzungen
+- Node.js (v18 oder höher)
+- npm oder yarn
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Installation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Repository klonen
+git clone <repository-url>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# In Projekt-Verzeichnis wechseln
+cd fittrack-pro
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Dependencies installieren
+npm install
+
+# Entwicklungsserver starten
 npm run dev
+
+# Build für Production
+npm run build
+
+# Production Build testen
+npm run preview
 ```
 
-**Edit a file directly in GitHub**
+Die App läuft standardmäßig auf `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🏗️ Projektstruktur
 
-**Use GitHub Codespaces**
+```
+fittrack-pro/
+├── src/
+│   ├── components/       # React-Komponenten
+│   │   ├── ui/          # shadcn/ui Basis-Komponenten
+│   │   ├── BottomNav.tsx
+│   │   ├── NavLink.tsx
+│   │   └── WorkoutCard.tsx
+│   ├── hooks/           # Custom React Hooks
+│   ├── lib/             # Utility-Funktionen
+│   │   ├── auth.tsx     # Auth-System (localStorage-basiert)
+│   │   └── utils.ts     # Helper-Funktionen
+│   ├── pages/           # Seiten-Komponenten
+│   │   ├── Dashboard.tsx
+│   │   ├── Auth.tsx
+│   │   ├── NewWorkout.tsx
+│   │   ├── ActiveWorkout.tsx
+│   │   ├── Stats.tsx
+│   │   └── Profile.tsx
+│   ├── App.tsx          # Haupt-App-Komponente
+│   ├── main.tsx         # Entry Point
+│   └── index.css        # Globale Styles
+├── public/              # Statische Assets
+└── dist/                # Build-Output
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 💾 Datenspeicherung
 
-## What technologies are used for this project?
+Die App verwendet localStorage für die Datenspeicherung:
 
-This project is built with:
+- `fittrack_user` - Benutzer-Informationen
+- `fittrack_workouts` - Liste aller Workouts
+- `fittrack_workout_{id}_exercises` - Übungen pro Workout
+- `fittrack_workout_{id}_sets` - Sets/Sätze pro Workout
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🔄 Änderungen vom Original
 
-## How can I deploy this project?
+### Entfernt
+- ❌ Supabase Backend-Integration
+- ❌ Externe Datenbank-Abhängigkeit
+- ❌ lovable-tagger Development-Tool
+- ❌ Externe Auth-Provider
 
-Simply open [Lovable](https://lovable.dev/projects/fbe15f4e-f79d-496f-9cc4-3f179fcf2092) and click on Share -> Publish.
+### Hinzugefügt
+- ✅ Lokales Auth-System
+- ✅ localStorage-basierte Datenverwaltung
+- ✅ Mock-Daten für Demo-Zwecke
+- ✅ Vollständig offline-fähig
 
-## Can I connect a custom domain to my Lovable project?
+## 🚀 Geplante Erweiterungen
 
-Yes, you can!
+Für die Zukunft mit eigenem Backend:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- [ ] Eigenes Backend (Node.js/Express oder FastAPI)
+- [ ] PostgreSQL/MongoDB Datenbank
+- [ ] Cloud-Synchronisation
+- [ ] Multi-Device Support
+- [ ] Soziale Features (Freunde, Challenges)
+- [ ] **Export-Funktionen** (PDF, CSV, Excel)
+- [ ] Import von anderen Apps
+- [ ] Workout-Templates teilen
+- [ ] Timer und Rest-Tracking während Sets
+- [ ] Foto-Upload für Progress-Pics
+- [ ] Ernährungs-Tracking
+- [ ] Integration mit Fitness-Trackern
+- [ ] Workout-Empfehlungen basierend auf Historie
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 📱 PWA Installation
+
+Die App kann als Progressive Web App auf dem Smartphone installiert werden:
+
+**iOS:**
+1. App in Safari öffnen
+2. Teilen-Button drücken
+3. "Zum Home-Bildschirm" wählen
+
+**Android:**
+1. App in Chrome öffnen
+2. Menü öffnen (drei Punkte)
+3. "App installieren" oder "Zum Startbildschirm hinzufügen"
+
+## 🔒 Datenschutz
+
+- Alle Daten werden lokal auf dem Gerät gespeichert
+- Keine Datenübertragung an externe Server
+- Keine Analytics oder Tracking
+- Vollständige Kontrolle über eigene Daten
+
+## 🛠️ Development
+
+### Verfügbare Scripts
+
+```bash
+npm run dev          # Entwicklungsserver starten
+npm run build        # Production Build erstellen
+npm run preview      # Build lokal testen
+npm run lint         # Code-Linting
+```
+
+### Code-Qualität
+
+- TypeScript für Type-Safety
+- ESLint für Code-Qualität
+- Moderne React Patterns (Hooks, Context)
+- Komponentenbasierte Architektur
+
+## 📄 Lizenz
+
+[Lizenz hier einfügen]
+
+## 👨‍💻 Autor
+
+Erstellt mit Lovable AI und angepasst für lokale Datenspeicherung.
+
+---
+
+**Version:** 1.0.0  
+**Letzte Aktualisierung:** November 2025

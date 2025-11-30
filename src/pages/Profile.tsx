@@ -29,9 +29,19 @@ const Profile = () => {
               <Mail className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">E-Mail</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+                <p className="text-sm text-muted-foreground">{user?.email || 'Nicht angemeldet'}</p>
               </div>
             </div>
+
+            {user?.username && (
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Benutzername</p>
+                  <p className="text-sm text-muted-foreground">{user.username}</p>
+                </div>
+              </div>
+            )}
 
             <Button
               onClick={signOut}
@@ -52,9 +62,12 @@ const Profile = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Version 1.0.0
-            </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Version 1.0.0</p>
+              <p className="pt-2 border-t">
+                Alle Daten werden lokal auf deinem Gerät gespeichert.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
