@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Dumbbell, TrendingUp, Clock } from 'lucide-react';
+import { Calendar, Dumbbell, TrendingUp, Clock, MoreVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -12,9 +12,10 @@ interface WorkoutCardProps {
     completed_at?: string;
   };
   onContinue?: () => void;
+  menuTrigger?: React.ReactNode;
 }
 
-const WorkoutCard = ({ workout, onContinue }: WorkoutCardProps) => {
+const WorkoutCard = ({ workout, onContinue, menuTrigger }: WorkoutCardProps) => {
   // Berechne Trainingsdauer
   const getDuration = () => {
     if (!workout.completed_at) return null;
@@ -68,12 +69,15 @@ const WorkoutCard = ({ workout, onContinue }: WorkoutCardProps) => {
             <Dumbbell className="h-5 w-5 text-primary" />
             {workout.name}
           </span>
-          {duration && (
-            <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {duration}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {duration && (
+              <span className="text-sm font-normal text-muted-foreground flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                {duration}
+              </span>
+            )}
+            {menuTrigger}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

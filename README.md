@@ -47,6 +47,10 @@ FitTrack Pro ist eine benutzerfreundliche Fitness-App, die es ermöglicht, Worko
 - ✅ **Bessere Workout-Cards** mit Übungsliste und Dauer
 - ✅ **Verbessertes Set-Layout** mit kreisförmigen Nummern
 - ✅ 22+ vordefinierte Übungen in 6 Kategorien
+- ✅ **Lock Screen Notifications** - Live-Timer auf dem Lock Screen während aktivem Training
+- ✅ **Wake Lock API** - Bildschirm bleibt während des Trainings wach
+- ✅ **App Badge** - Trainingsdauer als Badge auf dem App-Icon
+- ✅ **Persistent Notifications** mit Live-Updates (alle 10 Sekunden)
 - ✅ Responsive Mobile-First Design
 - ✅ Progressive Web App (PWA) - installierbar
 - ✅ Offline-Funktionalität
@@ -103,6 +107,8 @@ fittrack-pro/
 │   ├── hooks/           # Custom React Hooks
 │   ├── lib/             # Utility-Funktionen
 │   │   ├── auth.tsx     # Auth-System (localStorage-basiert)
+│   │   ├── notifications.ts # Notification & Wake Lock Management
+│   │   ├── exercises.ts # Übungskatalog
 │   │   └── utils.ts     # Helper-Funktionen
 │   ├── pages/           # Seiten-Komponenten
 │   │   ├── Dashboard.tsx
@@ -126,13 +132,48 @@ Die App verwendet localStorage für die Datenspeicherung:
 - `fittrack_workouts` - Liste aller Workouts
 - `fittrack_workout_{id}_exercises` - Übungen pro Workout
 - `fittrack_workout_{id}_sets` - Sets/Sätze pro Workout
+- `fittrack_custom_exercises` - Benutzerdefinierte Übungen
+
+## 🔔 Lock Screen & Notification Features
+
+FitTrack Pro bietet erweiterte Notification-Features für ein optimales Training-Erlebnis:
+
+### Persistent Training Notification
+Während eines aktiven Trainings wird eine dauerhafte Benachrichtigung angezeigt mit:
+- ⏱️ **Live-Timer** - Aktuelle Trainingsdauer
+- 💪 **Aktuelle Übung** - Was du gerade trainierst
+- 📊 **Fortschritt** - Wie viele Übungen noch fehlen
+- 🔄 **Auto-Update** - Alle 10 Sekunden aktualisiert
+
+Die Notification ist sichtbar:
+- ✅ Auf dem Lock Screen
+- ✅ Im Notification Center
+- ✅ Als persistente Benachrichtigung
+
+### Wake Lock - Bildschirm bleibt wach
+- 📱 Kein nerviges Entsperren zwischen Sätzen
+- 🔋 Automatische Aktivierung bei Training-Start
+- 🧹 Automatische Deaktivierung bei Training-Ende
+
+### App Badge
+- 🏷️ Zeigt Trainingsdauer auf dem App-Icon
+- 🔢 Update in Echtzeit
+- 🧹 Wird nach Training automatisch gelöscht
+
+**Mehr Details:** Siehe [NOTIFICATION_FEATURES.md](./NOTIFICATION_FEATURES.md)
+
+### Browser-Unterstützung
+| Feature | Chrome/Edge | Safari | Firefox |
+|---------|-------------|--------|---------|
+| Lock Screen Notifications | ✅ | ✅ | ✅ |
+| Wake Lock | ✅ | ✅ (iOS 16.4+) | ⚠️ |
+| App Badge | ✅ | ⚠️ | ❌ |
 
 ## 🔄 Änderungen vom Original
 
 ### Entfernt
 - ❌ Supabase Backend-Integration
 - ❌ Externe Datenbank-Abhängigkeit
-- ❌ lovable-tagger Development-Tool
 - ❌ Externe Auth-Provider
 
 ### Hinzugefügt
@@ -204,7 +245,6 @@ npm run lint         # Code-Linting
 
 ## 👨‍💻 Autor
 
-Erstellt mit Lovable AI und angepasst für lokale Datenspeicherung.
 
 ---
 

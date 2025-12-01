@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Plus, TrendingUp, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, Trash2, Edit, RotateCcw, Save, Share2, MoreVertical } from 'lucide-react';
 import WorkoutCard from '@/components/WorkoutCard';
 import BottomNav from '@/components/BottomNav';
 import { toast } from 'sonner';
@@ -16,6 +16,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Workout {
   id: string;
@@ -30,7 +36,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [deleteWorkoutId, setDeleteWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +52,6 @@ const Dashboard = () => {
 
   const loadWorkouts = async () => {
     try {
-      // Lade Workouts aus localStorage
       const storedWorkouts = localStorage.getItem('fittrack_workouts');
       if (storedWorkouts) {
         const parsedWorkouts = JSON.parse(storedWorkouts);
@@ -58,14 +62,14 @@ const Dashboard = () => {
           {
             id: 'workout-1',
             name: 'Push Day',
-            started_at: new Date(Date.now() - 86400000).toISOString(), // Gestern
+            started_at: new Date(Date.now() - 86400000).toISOString(),
             completed_at: new Date(Date.now() - 82800000).toISOString(),
             is_active: false
           },
           {
             id: 'workout-2',
             name: 'Bein Training',
-            started_at: new Date(Date.now() - 259200000).toISOString(), // Vor 3 Tagen
+            started_at: new Date(Date.now() - 259200000).toISOString(),
             completed_at: new Date(Date.now() - 255600000).toISOString(),
             is_active: false
           }
@@ -89,16 +93,149 @@ const Dashboard = () => {
     navigate(`/workout/${workoutId}`);
   };
 
-  const handleDeleteWorkout = async (workoutId: string) => {
+  const handleEditWorkout = (workoutId: string) => {
     try {
-      // Lösche Workout
       const storedWorkouts = localStorage.getItem('fittrack_workouts');
       if (storedWorkouts) {
-        const workouts = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workouts.filter((w: Workout) => w.id !== workoutId);
+        const workoutsList = JSON.parse(storedWorkouts);
+        const updatedWorkouts = workoutsList.map((w: Workout) => {
+          if (w.id === workoutId) {
+            return {
+              ...w,
+              is_active: true,
+              completed_at: null
+            };
+          }
+          return w;
+        });
+        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
+        toast.success('Workout wird bearbeitet');
+        navigate(`/workout/${workoutId}`);
+      }
+    } catch (error) {
+      toast.error('Fehler beim Öffnen');
+    }
+  };
+
+  const handleRepeatWorkout = (workoutId: string) => {
+    try {
+      const oldSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
+      
+      const newWorkoutId = `workout-${Date.now()}`;
+      const originalWorkout = workouts.find(w => w.id === workoutId);
+      
+      const newWorkout = {
+        id: newWorkoutId,
+        user_id: user?.id,
+        name: originalWorkout?.name || 'Wiederholung',
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        is_active: true
+      };
+
+      const storedWorkouts = localStorage.getItem('fittrack_workouts');
+      const workoutsList = storedWorkouts ? JSON.parse(storedWorkouts) : [];
+      workoutsList.unshift(newWorkout);
+      localStorage.setItem('fittrack_workouts', JSON.stringify(workoutsList));
+
+      toast.success('Training wiederholt!');
+      navigate(`/workout/${newWorkoutId}`);
+    } catch (error) {
+      toast.error('Fehler beim Wiederholen');
+    }
+  };
+
+  const handleSaveAsTemplate = (workoutId: string) => {
+    try {
+      const workout = workouts.find(w => w.id === workoutId);
+      if (!workout) return;
+
+      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
+      if (!storedSets) {
+        toast.error('Keine Übungen gefunden');
+        return;
+      }
+
+      const sets = JSON.parse(storedSets);
+      const exercisesMap = new Map();
+      sets.forEach((set: any) => {
+        if (set.exercise && !exercisesMap.has(set.exercise.id)) {
+          exercisesMap.set(set.exercise.id, set.exercise);
+        }
+      });
+
+      const exercises = Array.from(exercisesMap.values());
+
+      const newPlan = {
+        id: `plan-${Date.now()}`,
+        name: workout.name,
+        description: 'Aus Workout erstellt',
+        exercises: exercises,
+        created_at: new Date().toISOString()
+      };
+
+      const storedPlans = localStorage.getItem('fittrack_plans');
+      const plans = storedPlans ? JSON.parse(storedPlans) : [];
+      plans.push(newPlan);
+      localStorage.setItem('fittrack_plans', JSON.stringify(plans));
+
+      toast.success('Als Trainingsplan gespeichert!');
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
+    }
+  };
+
+  const handleShareWorkout = async (workoutId: string) => {
+    const workout = workouts.find(w => w.id === workoutId);
+    if (!workout) return;
+
+    try {
+      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
+      const sets = storedSets ? JSON.parse(storedSets) : [];
+      
+      let shareText = `🏋️ ${workout.name}\n\n`;
+      
+      const exercisesMap = new Map();
+      sets.forEach((set: any) => {
+        const exerciseName = set.exercise?.name || 'Unbekannt';
+        if (!exercisesMap.has(exerciseName)) {
+          exercisesMap.set(exerciseName, []);
+        }
+        exercisesMap.get(exerciseName).push(`${set.weight}kg × ${set.reps}`);
+      });
+
+      exercisesMap.forEach((setsList, exerciseName) => {
+        shareText += `${exerciseName}:\n`;
+        setsList.forEach((setInfo: string, index: number) => {
+          shareText += `  ${index + 1}. ${setInfo}\n`;
+        });
+        shareText += '\n';
+      });
+
+      shareText += '💪 Erstellt mit FitTrack Pro';
+
+      if (navigator.share) {
+        await navigator.share({
+          title: `Workout: ${workout.name}`,
+          text: shareText
+        });
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        toast.success('In Zwischenablage kopiert!');
+      }
+    } catch (error) {
+      console.error('Fehler beim Teilen', error);
+    }
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    try {
+      const storedWorkouts = localStorage.getItem('fittrack_workouts');
+      if (storedWorkouts) {
+        const workoutsList = JSON.parse(storedWorkouts);
+        const updatedWorkouts = workoutsList.filter((w: Workout) => w.id !== workoutId);
         localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
         
-        // Lösche zugehörige Daten
         localStorage.removeItem(`fittrack_workout_${workoutId}_exercises`);
         localStorage.removeItem(`fittrack_workout_${workoutId}_sets`);
         
@@ -137,21 +274,11 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="max-w-lg mx-auto p-4 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">FitTrack Pro</h1>
-            <p className="text-muted-foreground">
-              Bereit für dein nächstes Training?
-            </p>
-          </div>
-          {completedWorkouts.length > 0 && (
-            <Button
-              variant={isEditMode ? "default" : "outline"}
-              onClick={() => setIsEditMode(!isEditMode)}
-            >
-              {isEditMode ? 'Fertig' : 'Bearbeiten'}
-            </Button>
-          )}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">FitTrack Pro</h1>
+          <p className="text-muted-foreground">
+            Bereit für dein nächstes Training?
+          </p>
         </div>
 
         {/* Active Workout */}
@@ -190,19 +317,44 @@ const Dashboard = () => {
             </div>
             <div className="space-y-3">
               {monthWorkouts.map(workout => (
-                <div key={workout.id} className="relative">
-                  <WorkoutCard workout={workout} />
-                  {isEditMode && (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => setDeleteWorkoutId(workout.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
+                <WorkoutCard
+                  key={workout.id}
+                  workout={workout}
+                  menuTrigger={
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => handleEditWorkout(workout.id)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Bearbeiten
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRepeatWorkout(workout.id)}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Training wiederholen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSaveAsTemplate(workout.id)}>
+                          <Save className="mr-2 h-4 w-4" />
+                          Als Trainingsplan speichern
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShareWorkout(workout.id)}>
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Teilen
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteWorkoutId(workout.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  }
+                />
               ))}
             </div>
           </div>
