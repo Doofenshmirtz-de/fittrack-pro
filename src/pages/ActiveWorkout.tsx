@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Clock, Trash2, ChevronRight, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { EXERCISES, type Exercise } from '@/lib/exercises';
+import { workoutService, setService, type Workout, type Set } from '@/lib/firestore';
 import {
   Dialog,
   DialogContent,
@@ -15,31 +16,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface Set {
-  id: string;
-  set_number: number;
-  weight: number | null;
-  reps: number | null;
-  notes: string | null;
-  completed_at: string;
-}
-
 interface ExerciseSession {
   exercise: Exercise;
   sets: Set[];
 }
 
-interface Workout {
-  id: string;
-  name: string;
-  started_at: string;
-  completed_at: string | null;
-  is_active: boolean;
-  body_weight?: number | null;
-  notes?: string | null;
-}
-
-// Custom Exercises Management
+// Custom Exercises Management (still localStorage for now)
 const getCustomExercises = (): Exercise[] => {
   const stored = localStorage.getItem('fittrack_custom_exercises');
   return stored ? JSON.parse(stored) : [];
@@ -59,27 +41,28 @@ const saveCustomExercise = (exercise: Omit<Exercise, 'id'>): Exercise => {
 const ActiveWorkout = () => {
   const { workoutId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [exerciseSessions, setExerciseSessions] = useState<ExerciseSession[]>([]);
   const [elapsedTime, setElapsedTime] = useState<string>('');
-  
+
   // Zeit-Bearbeitung
   const [isEditingTime, setIsEditingTime] = useState(false);
   const [editStartDate, setEditStartDate] = useState('');
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
-  
+
   // Übungsauswahl States
   const [showCategorySelect, setShowCategorySelect] = useState(false);
   const [showExerciseSelect, setShowExerciseSelect] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  
+
   // Custom Exercise Dialog
   const [showCustomExerciseDialog, setShowCustomExerciseDialog] = useState(false);
   const [newExerciseName, setNewExerciseName] = useState('');
   const [newExerciseEquipment, setNewExerciseEquipment] = useState('');
-  
+
   // Set Input States
   const [showSetInput, setShowSetInput] = useState(false);
   const [newSet, setNewSet] = useState({ weight: '', reps: '', notes: '' });
@@ -94,60 +77,66 @@ const ActiveWorkout = () => {
   }, []);
 
   useEffect(() => {
-    loadWorkoutData();
+    if (workoutId) {
+      loadWorkoutData();
+    }
   }, [workoutId]);
 
   // Timer für Trainingsdauer
   useEffect(() => {
-    if (!workout || !workout.is_active) return;
+    if (!workout || !workout.isActive) return;
 
     const interval = setInterval(() => {
-      const start = new Date(workout.started_at).getTime();
+      const start = workout.startedAt.getTime();
       const now = new Date().getTime();
       const diff = now - start;
-      
+
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
+
       setElapsedTime(`${hours > 0 ? hours + 'h ' : ''}${minutes}min`);
     }, 1000);
 
     return () => clearInterval(interval);
   }, [workout]);
 
-
   const loadWorkoutData = async () => {
+    if (!workoutId) return;
+
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workouts = JSON.parse(storedWorkouts);
-        const currentWorkout = workouts.find((w: Workout) => w.id === workoutId);
-        if (currentWorkout) {
-          setWorkout(currentWorkout);
-          
-          // Setze Zeit-Werte für Bearbeitung
-          const startDate = new Date(currentWorkout.started_at);
-          const startDateStr = startDate.toISOString().slice(0, 10); // YYYY-MM-DD
-          const startTimeStr = startDate.toTimeString().slice(0, 5); // HH:MM
-          setEditStartDate(startDateStr);
-          setEditStartTime(startTimeStr);
-          
-          if (currentWorkout.completed_at) {
-            const endDate = new Date(currentWorkout.completed_at);
-            const endTimeStr = endDate.toTimeString().slice(0, 5);
-            setEditEndTime(endTimeStr);
-          }
-        }
+      setLoading(true);
+
+      // Load workout from Firestore
+      const currentWorkout = await workoutService.getWorkout(workoutId);
+
+      if (!currentWorkout) {
+        toast.error('Workout nicht gefunden');
+        navigate('/');
+        return;
       }
 
-      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
-      if (storedSets) {
-        const sets = JSON.parse(storedSets);
-        
-        const grouped = sets.reduce((acc: ExerciseSession[], set: any) => {
-          const exercise = set.exercise;
+      setWorkout(currentWorkout);
+
+      // Setze Zeit-Werte für Bearbeitung
+      const startDate = currentWorkout.startedAt;
+      const startDateStr = startDate.toISOString().slice(0, 10); // YYYY-MM-DD
+      const startTimeStr = startDate.toTimeString().slice(0, 5); // HH:MM
+      setEditStartDate(startDateStr);
+      setEditStartTime(startTimeStr);
+
+      if (currentWorkout.completedAt) {
+        const endDate = currentWorkout.completedAt;
+        const endTimeStr = endDate.toTimeString().slice(0, 5);
+        setEditEndTime(endTimeStr);
+      }
+
+      // Load sets from Firestore
+      const sets = await setService.getSets(workoutId);
+
+      const grouped = sets.reduce((acc: ExerciseSession[], set: Set) => {
+        const exercise = set.exercise;
         const existing = acc.find(s => s.exercise.id === exercise.id);
-        
+
         if (existing) {
           existing.sets.push(set);
         } else {
@@ -156,20 +145,21 @@ const ActiveWorkout = () => {
             sets: [set]
           });
         }
-        
+
         return acc;
-        }, []);
+      }, []);
 
       setExerciseSessions(grouped);
-      }
     } catch (error: any) {
       toast.error('Fehler beim Laden des Workouts');
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpdateTime = () => {
-    if (!workout) return;
+  const handleUpdateTime = async () => {
+    if (!workout || !workoutId) return;
 
     try {
       // Parse Datum und Zeit
@@ -178,35 +168,25 @@ const ActiveWorkout = () => {
       startDate.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
 
       let endDate = null;
-      if (editEndTime && !workout.is_active) {
+      if (editEndTime && !workout.isActive) {
         const [endHours, endMinutes] = editEndTime.split(':');
         endDate = new Date(editStartDate); // Gleiches Datum wie Start
         endDate.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
-        
+
         // Falls Endzeit vor Startzeit, dann am nächsten Tag
         if (endDate.getTime() < startDate.getTime()) {
           endDate.setDate(endDate.getDate() + 1);
         }
       }
 
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workouts = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workouts.map((w: Workout) => {
-          if (w.id === workoutId) {
-            return {
-              ...w,
-              started_at: startDate.toISOString(),
-              completed_at: endDate ? endDate.toISOString() : w.completed_at
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
-        loadWorkoutData();
-        setIsEditingTime(false);
-        toast.success('Datum & Zeit aktualisiert');
-      }
+      await workoutService.updateWorkout(workoutId, {
+        startedAt: startDate,
+        completedAt: endDate,
+      });
+
+      await loadWorkoutData();
+      setIsEditingTime(false);
+      toast.success('Datum & Zeit aktualisiert');
     } catch (error) {
       toast.error('Fehler beim Speichern');
     }
@@ -231,7 +211,7 @@ const ActiveWorkout = () => {
     setShowCustomExerciseDialog(false);
     setNewExerciseName('');
     setNewExerciseEquipment('');
-    
+
     handleExerciseSelect(newExercise);
   };
 
@@ -251,10 +231,10 @@ const ActiveWorkout = () => {
     const session = exerciseSessions.find(s => s.exercise.id === exercise.id);
     if (session && session.sets.length > 0) {
       const lastSet = session.sets[session.sets.length - 1];
-      setNewSet({ 
-        weight: String(lastSet.weight || ''), 
-        reps: String(lastSet.reps || ''), 
-        notes: '' 
+      setNewSet({
+        weight: String(lastSet.weight || ''),
+        reps: String(lastSet.reps || ''),
+        notes: ''
       });
     }
     setSelectedExercise(exercise);
@@ -262,7 +242,7 @@ const ActiveWorkout = () => {
   };
 
   const handleAddSet = async () => {
-    if (!selectedExercise || !newSet.weight || !newSet.reps) {
+    if (!selectedExercise || !newSet.weight || !newSet.reps || !workoutId || !user) {
       toast.error('Bitte fülle alle Felder aus');
       return;
     }
@@ -275,28 +255,23 @@ const ActiveWorkout = () => {
       );
       const setNumber = existingSession ? existingSession.sets.length + 1 : 1;
 
-      const newSetData: any = {
-        id: `set-${Date.now()}`,
-          workout_id: workoutId,
-        exercise_id: selectedExercise.id,
+      await setService.createSet({
+        workoutId: workoutId,
+        userId: user.id,
+        exerciseId: selectedExercise.id,
         exercise: selectedExercise,
-          set_number: setNumber,
-          weight: parseFloat(newSet.weight),
-          reps: parseInt(newSet.reps),
+        setNumber: setNumber,
+        weight: parseFloat(newSet.weight),
+        reps: parseInt(newSet.reps),
         notes: newSet.notes || null,
-        completed_at: new Date().toISOString()
-      };
-
-      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
-      const sets = storedSets ? JSON.parse(storedSets) : [];
-      sets.push(newSetData);
-      localStorage.setItem(`fittrack_workout_${workoutId}_sets`, JSON.stringify(sets));
+        completedAt: new Date(),
+      });
 
       toast.success('Satz hinzugefügt!');
       setNewSet({ weight: '', reps: '', notes: '' });
       setShowSetInput(false);
       setSelectedExercise(null);
-      loadWorkoutData();
+      await loadWorkoutData();
     } catch (error: any) {
       toast.error('Fehler beim Hinzufügen des Satzes');
       console.error(error);
@@ -306,60 +281,39 @@ const ActiveWorkout = () => {
   };
 
   const handleDeleteSet = async (setId: string) => {
+    if (!setId) return;
+
     try {
-      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
-      if (storedSets) {
-        const sets = JSON.parse(storedSets);
-        const updatedSets = sets.filter((s: any) => s.id !== setId);
-        localStorage.setItem(`fittrack_workout_${workoutId}_sets`, JSON.stringify(updatedSets));
-        toast.success('Satz gelöscht');
-        loadWorkoutData();
-      }
+      await setService.deleteSet(setId);
+      toast.success('Satz gelöscht');
+      await loadWorkoutData();
     } catch (error) {
       toast.error('Fehler beim Löschen');
     }
   };
 
   const handleUpdateWorkoutDetails = async (bodyWeight: string, notes: string) => {
+    if (!workoutId || !workout) return;
+
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workouts = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workouts.map((w: Workout) => {
-          if (w.id === workoutId) {
-            return {
-              ...w,
-              body_weight: bodyWeight ? parseFloat(bodyWeight) : null,
-              notes: notes || null
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
-        loadWorkoutData();
-      }
+      await workoutService.updateWorkout(workoutId, {
+        bodyWeight: bodyWeight ? parseFloat(bodyWeight) : null,
+        notes: notes || null,
+      });
+      await loadWorkoutData();
     } catch (error) {
       console.error('Fehler beim Speichern', error);
     }
   };
 
   const handleCompleteWorkout = async () => {
+    if (!workoutId) return;
+
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workouts = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workouts.map((w: Workout) => {
-          if (w.id === workoutId) {
-            return {
-              ...w,
-          completed_at: new Date().toISOString(),
-          is_active: false
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
-      }
+      await workoutService.updateWorkout(workoutId, {
+        completedAt: new Date(),
+        isActive: false,
+      });
 
       toast.success('Workout abgeschlossen! 💪');
       navigate('/');
@@ -377,8 +331,7 @@ const ActiveWorkout = () => {
     );
   }
 
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDateTime = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
       day: '2-digit',
@@ -389,12 +342,12 @@ const ActiveWorkout = () => {
     return date.toLocaleDateString('de-DE', options).replace(',', '.,');
   };
 
-  const startDateTime = formatDateTime(workout.started_at);
-  const endDateTime = workout.completed_at ? formatDateTime(workout.completed_at) : '-';
+  const startDateTime = formatDateTime(workout.startedAt);
+  const endDateTime = workout.completedAt ? formatDateTime(workout.completedAt) : '-';
 
   // Kategorien sammeln
   const categories = Array.from(new Set(allExercises.map(ex => ex.muscle_group))).sort();
-  
+
   // Übungen der ausgewählten Kategorie
   const exercisesInCategory = selectedCategory
     ? allExercises.filter(ex => ex.muscle_group === selectedCategory)
@@ -442,7 +395,7 @@ const ActiveWorkout = () => {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </span>
             </div>
-            {!workout.is_active && (
+            {!workout.isActive && (
               <div className="flex items-center justify-between text-sm cursor-pointer" onClick={() => setIsEditingTime(true)}>
                 <Label className="text-muted-foreground">Endzeit</Label>
                 <span className="flex items-center gap-1">
@@ -457,7 +410,7 @@ const ActiveWorkout = () => {
                 type="number"
                 step="0.1"
                 placeholder="-"
-                defaultValue={workout.body_weight || ''}
+                defaultValue={workout.bodyWeight || ''}
                 onBlur={(e) => handleUpdateWorkoutDetails(e.target.value, workout.notes || '')}
                 className="rounded-xl w-20 h-8 text-right"
               />
@@ -490,7 +443,7 @@ const ActiveWorkout = () => {
                   className="rounded-xl"
                 />
               </div>
-              {!workout.is_active && (
+              {!workout.isActive && (
                 <div className="space-y-2">
                   <Label>Endzeit</Label>
                   <Input
@@ -590,7 +543,7 @@ const ActiveWorkout = () => {
                 <Plus className="h-5 w-5 text-primary" />
                 <span className="font-medium text-primary">Eigene Übung erstellen</span>
               </div>
-              
+
               {exercisesInCategory.map((exercise) => (
                 <div
                   key={exercise.id}
@@ -624,7 +577,7 @@ const ActiveWorkout = () => {
                   autoFocus
                 />
               </div>
-                <div className="space-y-2">
+              <div className="space-y-2">
                 <Label>Equipment (optional)</Label>
                 <Input
                   placeholder="z.B. Kurzhantel, Maschine..."
@@ -693,8 +646,8 @@ const ActiveWorkout = () => {
               <Button onClick={handleAddSet} disabled={loading} className="w-full rounded-xl h-12">
                 {loading ? 'Wird hinzugefügt...' : 'Satz speichern'}
               </Button>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
         )}
 
         {/* Add Exercise Button */}
@@ -715,18 +668,18 @@ const ActiveWorkout = () => {
             <Card key={session.exercise.id} className="rounded-3xl">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{session.exercise.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {session.sets.map((set) => (
-                      <div
-                        key={set.id}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {session.sets.map((set) => (
+                    <div
+                      key={set.id}
                       className="flex items-center justify-between p-2 bg-muted rounded-2xl"
-                      >
+                    >
                       <div className="flex items-center gap-2 flex-1">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                            {set.set_number}
-                          </div>
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                          {set.setNumber}
+                        </div>
                         <div className="flex items-center gap-3 text-sm">
                           <span className="font-medium">{set.weight}kg</span>
                           <span className="text-muted-foreground">×</span>
@@ -736,14 +689,14 @@ const ActiveWorkout = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteSet(set.id)}
+                        onClick={() => handleDeleteSet(set.id!)}
                         className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      </div>
-                    ))}
-                  
+                    </div>
+                  ))}
+
                   {/* Add another set button - kompakter */}
                   <Button
                     variant="outline"
@@ -753,9 +706,9 @@ const ActiveWorkout = () => {
                     <Plus className="h-4 w-4 mr-1" />
                     Satz hinzufügen
                   </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { workoutService } from '@/lib/firestore';
 
 const NewWorkout = () => {
   const { user } = useAuth();
@@ -19,31 +20,29 @@ const NewWorkout = () => {
       return;
     }
 
+    if (!user) {
+      toast.error('Bitte melde dich an');
+      navigate('/auth');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Erstelle neues Workout
-      const workoutId = `workout-${Date.now()}`;
-      const newWorkout = {
-        id: workoutId,
-        user_id: user?.id,
+      // Erstelle neues Workout in Firestore
+      const workoutId = await workoutService.createWorkout({
+        userId: user.id,
         name: workoutName,
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        is_active: true
-      };
-
-      // Füge Workout zur Liste hinzu
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      const workouts = storedWorkouts ? JSON.parse(storedWorkouts) : [];
-      workouts.unshift(newWorkout);
-      localStorage.setItem('fittrack_workouts', JSON.stringify(workouts));
+        startedAt: new Date(),
+        completedAt: null,
+        isActive: true,
+      });
 
       toast.success('Workout gestartet!');
       navigate(`/workout/${workoutId}`);
     } catch (error: any) {
-      toast.error('Fehler beim Erstellen des Workouts');
-      console.error(error);
+      console.error('Error creating workout:', error);
+      toast.error('Fehler beim Erstellen des Workouts: ' + (error.message || 'Unbekannter Fehler'));
     } finally {
       setLoading(false);
     }

@@ -9,13 +9,16 @@ import { Plus, Play, Trash2, Copy, ChevronRight, Edit2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import { EXERCISES, type Exercise } from '@/lib/exercises';
+import { planService, workoutService, setService } from '@/lib/firestore';
+import type { WorkoutPlan as FirestorePlan } from '@/lib/firestore';
 
-interface WorkoutPlan {
+interface WorkoutPlanView {
   id: string;
   name: string;
   description: string;
   exercises: Exercise[];
   created_at: string;
+  isDefault?: boolean;
 }
 
 // Vordefinierte Trainingspläne
@@ -65,15 +68,16 @@ const DEFAULT_PLANS: WorkoutPlan[] = [
 const WorkoutPlans = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<WorkoutPlan[]>([]);
-  
+  const [plans, setPlans] = useState<WorkoutPlanView[]>([]);
+  const [loading, setLoading] = useState(false);
+
   // Creation/Edit States
   const [isCreating, setIsCreating] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [planName, setPlanName] = useState('');
   const [planDescription, setPlanDescription] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
-  
+
   // Exercise Selection States
   const [showCategorySelect, setShowCategorySelect] = useState(false);
   const [showExerciseSelect, setShowExerciseSelect] = useState(false);
@@ -87,13 +91,33 @@ const WorkoutPlans = () => {
     loadPlans();
   }, [user, navigate]);
 
-  const loadPlans = () => {
-    const storedPlans = localStorage.getItem('fittrack_plans');
-    if (storedPlans) {
-      setPlans(JSON.parse(storedPlans));
-    } else {
-      setPlans(DEFAULT_PLANS);
-      localStorage.setItem('fittrack_plans', JSON.stringify(DEFAULT_PLANS));
+  const loadPlans = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const userPlans = await planService.getPlans(user.id);
+
+      // Convert Firestore plans to view format
+      const viewPlans: WorkoutPlanView[] = userPlans.map(p => ({
+        id: p.id!,
+        name: p.name,
+        description: p.description,
+        exercises: p.exercises,
+        created_at: p.createdAt.toISOString(),
+      }));
+
+      // Add default plans
+      const defaultPlans: WorkoutPlanView[] = DEFAULT_PLANS.map(p => ({
+        ...p,
+        isDefault: true,
+      }));
+
+      setPlans([...defaultPlans, ...viewPlans]);
+    } catch (error) {
+      toast.error('Fehler beim Laden der Pläne');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,8 +137,8 @@ const WorkoutPlans = () => {
     setIsCreating(true);
   };
 
-  const handleStartEditing = (plan: WorkoutPlan) => {
-    if (plan.id.startsWith('default-')) {
+  const handleStartEditing = (plan: WorkoutPlanView) => {
+    if (plan.isDefault) {
       toast.error('Standard-Pläne können nicht bearbeitet werden');
       return;
     }
@@ -140,7 +164,7 @@ const WorkoutPlans = () => {
     }
   };
 
-  const handleSavePlan = () => {
+  const handleSavePlan = async () => {
     if (!planName.trim()) {
       toast.error('Bitte gib einen Namen ein');
       return;
@@ -151,88 +175,113 @@ const WorkoutPlans = () => {
       return;
     }
 
-    const plan: WorkoutPlan = {
-      id: editingPlanId || `plan-${Date.now()}`,
-      name: planName,
-      description: planDescription,
-      exercises: selectedExercises,
-      created_at: editingPlanId 
-        ? plans.find(p => p.id === editingPlanId)?.created_at || new Date().toISOString()
-        : new Date().toISOString()
-    };
-
-    let updatedPlans;
-    if (editingPlanId) {
-      updatedPlans = plans.map(p => p.id === editingPlanId ? plan : p);
-      toast.success('Plan aktualisiert!');
-    } else {
-      updatedPlans = [...plans, plan];
-      toast.success('Plan erstellt!');
+    if (!user) {
+      toast.error('Bitte melde dich an');
+      return;
     }
 
-    setPlans(updatedPlans);
-    localStorage.setItem('fittrack_plans', JSON.stringify(updatedPlans));
-    resetForm();
+    try {
+      if (editingPlanId) {
+        // Update existing plan
+        await planService.updatePlan(editingPlanId, {
+          name: planName,
+          description: planDescription,
+          exercises: selectedExercises,
+        });
+        toast.success('Plan aktualisiert!');
+      } else {
+        // Create new plan
+        await planService.createPlan({
+          userId: user.id,
+          name: planName,
+          description: planDescription,
+          exercises: selectedExercises,
+          createdAt: new Date(),
+        });
+        toast.success('Plan erstellt!');
+      }
+
+      await loadPlans();
+      resetForm();
+    } catch (error) {
+      toast.error('Fehler beim Speichern');
+    }
   };
 
-  const handleStartWorkout = (plan: WorkoutPlan) => {
-    const workoutId = `workout-${Date.now()}`;
-    const newWorkout = {
-      id: workoutId,
-      user_id: user?.id,
-      name: plan.name,
-      started_at: new Date().toISOString(),
-      completed_at: null,
-      is_active: true
-    };
+  const handleStartWorkout = async (plan: WorkoutPlanView) => {
+    if (!user) {
+      toast.error('Bitte melde dich an');
+      return;
+    }
 
-    const storedWorkouts = localStorage.getItem('fittrack_workouts');
-    const workouts = storedWorkouts ? JSON.parse(storedWorkouts) : [];
-    workouts.unshift(newWorkout);
-    localStorage.setItem('fittrack_workouts', JSON.stringify(workouts));
+    try {
+      // Create workout in Firestore
+      const workoutId = await workoutService.createWorkout({
+        userId: user.id,
+        name: plan.name,
+        startedAt: new Date(),
+        completedAt: null,
+        isActive: true,
+      });
 
-    // Erstelle leere Sets für jede Übung im Plan (damit sie direkt sichtbar sind)
-    const initialSets = plan.exercises.map((exercise, exerciseIndex) => ({
-      id: `set-${Date.now()}-${exerciseIndex}`,
-      workout_id: workoutId,
-      exercise_id: exercise.id,
-      exercise: exercise,
-      set_number: 1,
-      weight: null,
-      reps: null,
-      notes: null,
-      completed_at: new Date().toISOString(),
-      is_template: true // Markiert als Vorlage-Satz (noch nicht ausgeführt)
-    }));
+      // Erstelle leere Sets für jede Übung im Plan (damit sie direkt sichtbar sind)
+      const initialSets = plan.exercises.map((exercise, exerciseIndex) => ({
+        workoutId: workoutId,
+        userId: user.id,
+        exerciseId: exercise.id,
+        exercise: exercise,
+        setNumber: 1,
+        weight: null,
+        reps: null,
+        notes: null,
+        completedAt: new Date(),
+        isTemplate: true,
+      }));
 
-    localStorage.setItem(`fittrack_workout_${workoutId}_sets`, JSON.stringify(initialSets));
+      await setService.createSets(initialSets);
 
-    toast.success('Workout gestartet!');
-    navigate(`/workout/${workoutId}`);
+      toast.success('Workout gestartet!');
+      navigate(`/workout/${workoutId}`);
+    } catch (error) {
+      toast.error('Fehler beim Starten des Workouts');
+    }
   };
 
-  const handleDeletePlan = (planId: string) => {
+  const handleDeletePlan = async (planId: string) => {
     if (planId.startsWith('default-')) {
       toast.error('Standard-Pläne können nicht gelöscht werden');
       return;
     }
-    const updatedPlans = plans.filter(p => p.id !== planId);
-    setPlans(updatedPlans);
-    localStorage.setItem('fittrack_plans', JSON.stringify(updatedPlans));
-    toast.success('Plan gelöscht');
+
+    try {
+      await planService.deletePlan(planId);
+      await loadPlans();
+      toast.success('Plan gelöscht');
+    } catch (error) {
+      toast.error('Fehler beim Löschen');
+    }
   };
 
-  const handleDuplicatePlan = (plan: WorkoutPlan) => {
-    const duplicatedPlan: WorkoutPlan = {
-      ...plan,
-      id: `plan-${Date.now()}`,
-      name: `${plan.name} (Kopie)`,
-      created_at: new Date().toISOString()
-    };
-    const updatedPlans = [...plans, duplicatedPlan];
-    setPlans(updatedPlans);
-    localStorage.setItem('fittrack_plans', JSON.stringify(updatedPlans));
-    toast.success('Plan dupliziert');
+  const handleDuplicatePlan = async (plan: WorkoutPlanView) => {
+    if (!user) {
+      toast.error('Bitte melde dich an');
+      return;
+    }
+
+    try {
+      await planService.createPlan({
+        userId: user.id,
+        name: `${plan.name} (Kopie)`,
+        description: plan.description,
+        exercises: plan.exercises,
+        createdAt: new Date(),
+      });
+
+      await loadPlans();
+      toast.success('Plan dupliziert');
+    } catch (error) {
+      toast.error('Fehler beim Duplizieren');
+    }
   };
 
   const categories = Array.from(new Set(EXERCISES.map(ex => ex.muscle_group))).sort();
@@ -471,7 +520,7 @@ const WorkoutPlans = () => {
                       variant="outline"
                       size="icon"
                       onClick={() => handleStartEditing(plan)}
-                      disabled={plan.id.startsWith('default-')}
+                      disabled={plan.isDefault}
                       className="rounded-xl"
                     >
                       <Edit2 className="h-4 w-4" />
@@ -488,7 +537,7 @@ const WorkoutPlans = () => {
                       variant="outline"
                       size="icon"
                       onClick={() => handleDeletePlan(plan.id)}
-                      disabled={plan.id.startsWith('default-')}
+                      disabled={plan.isDefault}
                       className="rounded-xl"
                     >
                       <Trash2 className="h-4 w-4" />
