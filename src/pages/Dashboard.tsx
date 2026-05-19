@@ -6,6 +6,8 @@ import { Plus, TrendingUp, Trash2, Edit, RotateCcw, Save, Share2, MoreVertical }
 import WorkoutCard from '@/components/WorkoutCard';
 import BottomNav from '@/components/BottomNav';
 import { toast } from 'sonner';
+import { workoutService, setService } from '@/lib/firestore';
+import type { Workout, Set } from '@/lib/firestore';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Workout {
+interface WorkoutView {
   id: string;
   name: string;
   started_at: string;
@@ -34,7 +36,7 @@ interface Workout {
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [workouts, setWorkouts] = useState<WorkoutView[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteWorkoutId, setDeleteWorkoutId] = useState<string | null>(null);
 
@@ -51,32 +53,22 @@ const Dashboard = () => {
   }, [user]);
 
   const loadWorkouts = async () => {
+    if (!user) return;
+    
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const parsedWorkouts = JSON.parse(storedWorkouts);
-        setWorkouts(parsedWorkouts);
-      } else {
-        // Beispiel-Daten für Demo
-        const mockWorkouts: Workout[] = [
-          {
-            id: 'workout-1',
-            name: 'Push Day',
-            started_at: new Date(Date.now() - 86400000).toISOString(),
-            completed_at: new Date(Date.now() - 82800000).toISOString(),
-            is_active: false
-          },
-          {
-            id: 'workout-2',
-            name: 'Bein Training',
-            started_at: new Date(Date.now() - 259200000).toISOString(),
-            completed_at: new Date(Date.now() - 255600000).toISOString(),
-            is_active: false
-          }
-        ];
-        setWorkouts(mockWorkouts);
-        localStorage.setItem('fittrack_workouts', JSON.stringify(mockWorkouts));
-      }
+      setLoading(true);
+      const fetchedWorkouts = await workoutService.getWorkouts(user.id);
+      
+      // Convert Firestore Workout to view format
+      const viewWorkouts: WorkoutView[] = fetchedWorkouts.map(w => ({
+        id: w.id!,
+        name: w.name,
+        started_at: w.startedAt.toISOString(),
+        completed_at: w.completedAt ? w.completedAt.toISOString() : null,
+        is_active: w.isActive,
+      }));
+      
+      setWorkouts(viewWorkouts);
     } catch (error: any) {
       toast.error('Fehler beim Laden der Workouts');
       console.error(error);
@@ -93,62 +85,54 @@ const Dashboard = () => {
     navigate(`/workout/${workoutId}`);
   };
 
-  const handleEditWorkout = (workoutId: string) => {
+  const handleEditWorkout = async (workoutId: string) => {
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workoutsList = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workoutsList.map((w: Workout) => {
-          if (w.id === workoutId) {
-            return {
-              ...w,
-              is_active: true,
-              completed_at: null
-            };
-          }
-          return w;
-        });
-        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
-        toast.success('Workout wird bearbeitet');
-        navigate(`/workout/${workoutId}`);
-      }
+      await workoutService.updateWorkout(workoutId, {
+        isActive: true,
+        completedAt: null,
+      });
+      
+      toast.success('Workout wird bearbeitet');
+      navigate(`/workout/${workoutId}`);
     } catch (error) {
       toast.error('Fehler beim Öffnen');
     }
   };
 
-  const handleRepeatWorkout = (workoutId: string) => {
+  const handleRepeatWorkout = async (workoutId: string) => {
+    if (!user) return;
+    
     try {
-      const oldSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
+      // Get old sets
+      const oldSets = await setService.getSets(workoutId);
       
-      const newWorkoutId = `workout-${Date.now()}`;
       const originalWorkout = workouts.find(w => w.id === workoutId);
       
-      const newWorkout = {
-        id: newWorkoutId,
-        user_id: user?.id,
+      // Create new workout
+      const newWorkoutId = await workoutService.createWorkout({
+        userId: user.id,
         name: originalWorkout?.name || 'Wiederholung',
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        is_active: true
-      };
+        startedAt: new Date(),
+        completedAt: null,
+        isActive: true,
+      });
 
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      const workoutsList = storedWorkouts ? JSON.parse(storedWorkouts) : [];
-      workoutsList.unshift(newWorkout);
-      localStorage.setItem('fittrack_workouts', JSON.stringify(workoutsList));
-
-      // Kopiere die alten Sets mit neuen IDs
-      if (oldSets) {
-        const parsedOldSets = JSON.parse(oldSets);
-        const newSets = parsedOldSets.map((set: any, index: number) => ({
-          ...set,
-          id: `set-${Date.now()}-${index}`,
-          workout_id: newWorkoutId,
-          completed_at: new Date().toISOString(),
-          is_repeated: true // Markiert als kopierter Satz
+      // Copy sets with new IDs
+      if (oldSets.length > 0) {
+        const newSets: Omit<Set, 'id'>[] = oldSets.map((set, index) => ({
+          workoutId: newWorkoutId,
+          userId: user.id,
+          exerciseId: set.exerciseId,
+          exercise: set.exercise,
+          setNumber: set.setNumber,
+          weight: set.weight,
+          reps: set.reps,
+          notes: set.notes,
+          completedAt: new Date(),
+          isRepeated: true,
         }));
-        localStorage.setItem(`fittrack_workout_${newWorkoutId}_sets`, JSON.stringify(newSets));
+        
+        await setService.createSets(newSets);
       }
 
       toast.success('Training wiederholt!');
@@ -158,20 +142,22 @@ const Dashboard = () => {
     }
   };
 
-  const handleSaveAsTemplate = (workoutId: string) => {
+  const handleSaveAsTemplate = async (workoutId: string) => {
+    if (!user) return;
+    
     try {
       const workout = workouts.find(w => w.id === workoutId);
       if (!workout) return;
 
-      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
-      if (!storedSets) {
+      const sets = await setService.getSets(workoutId);
+      
+      if (sets.length === 0) {
         toast.error('Keine Übungen gefunden');
         return;
       }
 
-      const sets = JSON.parse(storedSets);
       const exercisesMap = new Map();
-      sets.forEach((set: any) => {
+      sets.forEach((set) => {
         if (set.exercise && !exercisesMap.has(set.exercise.id)) {
           exercisesMap.set(set.exercise.id, set.exercise);
         }
@@ -179,18 +165,15 @@ const Dashboard = () => {
 
       const exercises = Array.from(exercisesMap.values());
 
-      const newPlan = {
-        id: `plan-${Date.now()}`,
+      // Create plan using localStorage for now (will be migrated later)
+      const { planService } = await import('@/lib/firestore');
+      await planService.createPlan({
+        userId: user.id,
         name: workout.name,
         description: 'Aus Workout erstellt',
         exercises: exercises,
-        created_at: new Date().toISOString()
-      };
-
-      const storedPlans = localStorage.getItem('fittrack_plans');
-      const plans = storedPlans ? JSON.parse(storedPlans) : [];
-      plans.push(newPlan);
-      localStorage.setItem('fittrack_plans', JSON.stringify(plans));
+        createdAt: new Date(),
+      });
 
       toast.success('Als Trainingsplan gespeichert!');
     } catch (error) {
@@ -203,13 +186,12 @@ const Dashboard = () => {
     if (!workout) return;
 
     try {
-      const storedSets = localStorage.getItem(`fittrack_workout_${workoutId}_sets`);
-      const sets = storedSets ? JSON.parse(storedSets) : [];
+      const sets = await setService.getSets(workoutId);
       
       let shareText = `🏋️ ${workout.name}\n\n`;
       
       const exercisesMap = new Map();
-      sets.forEach((set: any) => {
+      sets.forEach((set) => {
         const exerciseName = set.exercise?.name || 'Unbekannt';
         if (!exercisesMap.has(exerciseName)) {
           exercisesMap.set(exerciseName, []);
@@ -243,18 +225,10 @@ const Dashboard = () => {
 
   const handleDeleteWorkout = async (workoutId: string) => {
     try {
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      if (storedWorkouts) {
-        const workoutsList = JSON.parse(storedWorkouts);
-        const updatedWorkouts = workoutsList.filter((w: Workout) => w.id !== workoutId);
-        localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
-        
-        localStorage.removeItem(`fittrack_workout_${workoutId}_exercises`);
-        localStorage.removeItem(`fittrack_workout_${workoutId}_sets`);
-        
-        toast.success('Workout gelöscht');
-        loadWorkouts();
-      }
+      await workoutService.deleteWorkout(workoutId);
+      
+      toast.success('Workout gelöscht');
+      loadWorkouts();
     } catch (error) {
       toast.error('Fehler beim Löschen');
     }
@@ -281,7 +255,7 @@ const Dashboard = () => {
     }
     acc[monthYear].push(workout);
     return acc;
-  }, {} as Record<string, Workout[]>);
+  }, {} as Record<string, WorkoutView[]>);
 
   return (
     <div className="min-h-screen bg-background pb-20">

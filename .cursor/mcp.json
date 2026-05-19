@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "firebase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "firebase-tools@latest",
+        "mcp",
+        "--dir",
+        "/Users/jarnokibies/Github projects/Fitnesstracker/fittrack-pro"
+      ],
+      "env": {
+        "VITE_FIREBASE_PROJECT_ID": "fittrack-pro-eabdb"
+      }
+    }
+  }
+}

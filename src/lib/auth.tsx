@@ -1,10 +1,19 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  updateProfile,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from './firebase';
 
 interface User {
   id: string;
-  email: string;
-  username: string;
+  email: string | null;
+  username: string | null;
 }
 
 interface AuthContextType {
@@ -17,12 +26,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user für Demo-Zwecke
-const MOCK_USER: User = {
-  id: 'mock-user-id',
-  email: 'demo@fittrack.de',
-  username: 'Demo User'
-};
+const mapFirebaseUser = (firebaseUser: FirebaseUser): User => ({
+  id: firebaseUser.uid,
+  email: firebaseUser.email,
+  username: firebaseUser.displayName,
+});
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -30,57 +38,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Prüfe ob Benutzer eingeloggt ist (in localStorage gespeichert)
-    const storedUser = localStorage.getItem('fittrack_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem('fittrack_user');
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(mapFirebaseUser(firebaseUser));
+      } else {
+        setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, username: string) => {
-    // Simuliere eine kurze Verzögerung
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      email,
-      username
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('fittrack_user', JSON.stringify(newUser));
-    navigate('/');
-    
-    return { error: null };
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Setze den Displayname
+      await updateProfile(userCredential.user, {
+        displayName: username,
+      });
+
+      setUser(mapFirebaseUser(userCredential.user));
+      navigate('/');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    // Simuliere eine kurze Verzögerung
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Für Demo: Akzeptiere beliebige Login-Daten
-    const user: User = {
-      id: 'mock-user-id',
-      email,
-      username: email.split('@')[0]
-    };
-    
-    setUser(user);
-    localStorage.setItem('fittrack_user', JSON.stringify(user));
-    navigate('/');
-    
-    return { error: null };
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setUser(mapFirebaseUser(userCredential.user));
+      navigate('/');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    setUser(null);
-    localStorage.removeItem('fittrack_user');
-    navigate('/auth');
+    try {
+      await firebaseSignOut(auth);
+      setUser(null);
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
