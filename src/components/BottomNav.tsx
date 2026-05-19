@@ -1,4 +1,4 @@
-import { Home, BarChart3, User, ClipboardList } from 'lucide-react';
+import { Home, BarChart3, User, ClipboardList, Bug } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -9,7 +9,8 @@ const BottomNav = () => {
     { icon: Home, label: 'Home', path: '/' },
     { icon: ClipboardList, label: 'Pläne', path: '/plans' },
     { icon: BarChart3, label: 'Stats', path: '/stats' },
-    { icon: User, label: 'Profil', path: '/profile' }
+    { icon: User, label: 'Profil', path: '/profile' },
+    { icon: Bug, label: 'Debug', path: '/debug' }
   ];
 
   return (

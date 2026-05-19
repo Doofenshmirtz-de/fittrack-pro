@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { workoutService } from '@/lib/firestore';
 
 const NewWorkout = () => {
   const { user } = useAuth();
@@ -19,31 +20,53 @@ const NewWorkout = () => {
       return;
     }
 
+    if (!user) {
+      toast.error('Bitte melde dich an');
+      navigate('/auth');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Erstelle neues Workout
-      const workoutId = `workout-${Date.now()}`;
-      const newWorkout = {
-        id: workoutId,
-        user_id: user?.id,
+      // Erstelle neues Workout in Firestore
+      const workoutId = await workoutService.createWorkout({
+        userId: user.id,
         name: workoutName,
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        is_active: true
-      };
-
-      // Füge Workout zur Liste hinzu
-      const storedWorkouts = localStorage.getItem('fittrack_workouts');
-      const workouts = storedWorkouts ? JSON.parse(storedWorkouts) : [];
-      workouts.unshift(newWorkout);
-      localStorage.setItem('fittrack_workouts', JSON.stringify(workouts));
+        startedAt: new Date(),
+        completedAt: null,
+        isActive: true,
+      });
 
       toast.success('Workout gestartet!');
       navigate(`/workout/${workoutId}`);
     } catch (error: any) {
-      toast.error('Fehler beim Erstellen des Workouts');
-      console.error(error);
+      console.error('Error creating workout:', error);
+      
+      // Detaillierte Fehlermeldungen
+      let errorMessage = 'Fehler beim Erstellen des Workouts';
+      
+      if (error.name === 'FirestorePermissionError') {
+        errorMessage = '🔒 Zugriff verweigert: Die Firebase Security Rules blockieren diese Aktion.\n\n' +
+          'Lösung: Gehe zur Firebase Console > Firestore Database > Rules und füge diese Regel hinzu:\n\n' +
+          'match /workouts/{workoutId} {\n' +
+          '  allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;\n' +
+          '}';
+      } else if (error.name === 'FirestoreNetworkError') {
+        errorMessage = '🌐 Keine Internetverbindung. Bitte prüfe deine Netzwerkverbindung und versuche es erneut.';
+      } else if (error.name === 'FirestoreIndexError') {
+        errorMessage = '⏳ Der Firestore Index wird noch erstellt. Bitte warte 1-2 Minuten und versuche es dann erneut.';
+      } else if (error.message?.includes('permission-denied')) {
+        errorMessage = '🔒 Fehlende Berechtigung: Deine Firebase Security Rules erlauben das Erstellen von Workouts nicht.\n\n' +
+          'Gehe zu https://console.firebase.google.com/project/fittrack-pro-eabdb/firestore/rules\n' +
+          'und veröffentliche die aktuellen Rules aus der Datei firestore.rules';
+      } else {
+        errorMessage = `❌ Fehler: ${error.message || 'Unbekannter Fehler'}`;
+      }
+      
+      toast.error(errorMessage, {
+        duration: 10000, // 10 Sekunden anzeigen für lange Nachrichten
+      });
     } finally {
       setLoading(false);
     }
