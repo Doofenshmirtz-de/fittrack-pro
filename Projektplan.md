@@ -119,8 +119,8 @@ fittrack-pro/
 ## Bekannte Bugs & Probleme
 
 ### Kritisch
-- [ ] **WorkoutPlans.tsx**: Bei `handleStartWorkout` wird `plan.exercises` gespeichert, aber in `ActiveWorkout.tsx` wird nie darauf zugegriffen - die Übungen aus dem Plan werden nicht automatisch geladen
-- [ ] **Dashboard.tsx**: `handleRepeatWorkout` kopiert die Sets nicht vom alten Workout - nur ein leeres Workout wird erstellt
+- [x] **WorkoutPlans.tsx**: Bei `handleStartWorkout` wird `plan.exercises` gespeichert, aber in `ActiveWorkout.tsx` wird nie darauf zugegriffen - die Übungen aus dem Plan werden nicht automatisch geladen ✅ FIXED
+- [x] **Dashboard.tsx**: `handleRepeatWorkout` kopiert die Sets nicht vom alten Workout - nur ein leeres Workout wird erstellt ✅ FIXED
 
 ### Mittel
 - [ ] **ActiveWorkout.tsx**: Keine Eingabevalidierung für Gewicht/Reps (negative Werte möglich)

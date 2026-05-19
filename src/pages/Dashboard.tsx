@@ -138,6 +138,19 @@ const Dashboard = () => {
       workoutsList.unshift(newWorkout);
       localStorage.setItem('fittrack_workouts', JSON.stringify(workoutsList));
 
+      // Kopiere die alten Sets mit neuen IDs
+      if (oldSets) {
+        const parsedOldSets = JSON.parse(oldSets);
+        const newSets = parsedOldSets.map((set: any, index: number) => ({
+          ...set,
+          id: `set-${Date.now()}-${index}`,
+          workout_id: newWorkoutId,
+          completed_at: new Date().toISOString(),
+          is_repeated: true // Markiert als kopierter Satz
+        }));
+        localStorage.setItem(`fittrack_workout_${newWorkoutId}_sets`, JSON.stringify(newSets));
+      }
+
       toast.success('Training wiederholt!');
       navigate(`/workout/${newWorkoutId}`);
     } catch (error) {

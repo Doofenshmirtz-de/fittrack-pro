@@ -186,12 +186,26 @@ const WorkoutPlans = () => {
       is_active: true
     };
 
-    localStorage.setItem(`fittrack_workout_${workoutId}_exercises`, JSON.stringify(plan.exercises));
-
     const storedWorkouts = localStorage.getItem('fittrack_workouts');
     const workouts = storedWorkouts ? JSON.parse(storedWorkouts) : [];
     workouts.unshift(newWorkout);
     localStorage.setItem('fittrack_workouts', JSON.stringify(workouts));
+
+    // Erstelle leere Sets für jede Übung im Plan (damit sie direkt sichtbar sind)
+    const initialSets = plan.exercises.map((exercise, exerciseIndex) => ({
+      id: `set-${Date.now()}-${exerciseIndex}`,
+      workout_id: workoutId,
+      exercise_id: exercise.id,
+      exercise: exercise,
+      set_number: 1,
+      weight: null,
+      reps: null,
+      notes: null,
+      completed_at: new Date().toISOString(),
+      is_template: true // Markiert als Vorlage-Satz (noch nicht ausgeführt)
+    }));
+
+    localStorage.setItem(`fittrack_workout_${workoutId}_sets`, JSON.stringify(initialSets));
 
     toast.success('Workout gestartet!');
     navigate(`/workout/${workoutId}`);
