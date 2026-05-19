@@ -11,6 +11,7 @@ import Stats from "./pages/Stats";
 import NewWorkout from "./pages/NewWorkout";
 import ActiveWorkout from "./pages/ActiveWorkout";
 import WorkoutPlans from "./pages/WorkoutPlans";
+import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/plans" element={<WorkoutPlans />} />
+            <Route path="/debug" element={<Debug />} />
             <Route path="/workout/new" element={<NewWorkout />} />
             <Route path="/workout/:workoutId" element={<ActiveWorkout />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
