@@ -14,16 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  startWorkoutNotificationUpdates,
-  closeWorkoutNotification,
-  requestNotificationPermission,
-  requestWakeLock,
-  releaseWakeLock,
-  setAppBadge,
-  clearAppBadge,
-  type WorkoutNotificationData
-} from '@/lib/notifications';
 
 interface Set {
   id: string;
@@ -125,63 +115,6 @@ const ActiveWorkout = () => {
     return () => clearInterval(interval);
   }, [workout]);
 
-  // Persistent Notification für aktives Training
-  useEffect(() => {
-    if (!workout || !workout.is_active) return;
-
-    // Notification Permission anfragen & Wake Lock aktivieren
-    const initNotifications = async () => {
-      const hasPermission = await requestNotificationPermission();
-      if (hasPermission) {
-        // Aktiviere Wake Lock
-        await requestWakeLock();
-
-        // Funktion die aktuelle Notification Daten liefert
-        const getNotificationData = (): WorkoutNotificationData => {
-          const start = new Date(workout.started_at).getTime();
-          const now = new Date().getTime();
-          const diff = now - start;
-          
-          const hours = Math.floor(diff / (1000 * 60 * 60));
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          const duration = `${hours > 0 ? hours + 'h ' : ''}${minutes}min`;
-
-          // Aktuelle Übung (letzte hinzugefügte)
-          const currentExercise = exerciseSessions.length > 0 
-            ? exerciseSessions[exerciseSessions.length - 1].exercise.name
-            : undefined;
-
-          // Anzahl unterschiedlicher Übungen
-          const totalExercises = exerciseSessions.length;
-          const completedExercises = exerciseSessions.filter(s => s.sets.length > 0).length;
-
-          return {
-            workoutName: workout.name,
-            duration,
-            currentExercise,
-            completedExercises,
-            totalExercises
-          };
-        };
-
-        // Starte Live-Updates (alle 10 Sekunden)
-        startWorkoutNotificationUpdates(getNotificationData, 10000);
-
-        // Badge mit Trainingsdauer in Minuten
-        const totalMinutes = Math.floor((Date.now() - new Date(workout.started_at).getTime()) / (1000 * 60));
-        setAppBadge(totalMinutes);
-      }
-    };
-
-    initNotifications();
-
-    // Cleanup beim Unmount
-    return () => {
-      closeWorkoutNotification();
-      releaseWakeLock();
-      clearAppBadge();
-    };
-  }, [workout, exerciseSessions]);
 
   const loadWorkoutData = async () => {
     try {
@@ -427,11 +360,6 @@ const ActiveWorkout = () => {
         });
         localStorage.setItem('fittrack_workouts', JSON.stringify(updatedWorkouts));
       }
-
-      // Cleanup Notifications, Wake Lock & Badge
-      await closeWorkoutNotification();
-      await releaseWakeLock();
-      await clearAppBadge();
 
       toast.success('Workout abgeschlossen! 💪');
       navigate('/');
