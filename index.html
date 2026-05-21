@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -7,24 +7,66 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     
-    <title>FitTrack Pro - Fitness Tracking App</title>
+    <title>FitTrack Pro</title>
     <meta name="description" content="Tracke dein Training im Gym. Speichere Sätze, Wiederholungen und Gewichte. Verfolge deine 1RM Progression und Personal Records." />
     <meta name="author" content="FitTrack Pro" />
 
     <meta property="og:title" content="FitTrack Pro - Fitness Tracking App" />
     <meta property="og:description" content="Tracke dein Training im Gym und erreiche deine Ziele" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/icon-512.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@FitTrackPro" />
-    <meta name="twitter:image" content="/icon-512.png" />
     
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    
+    <!-- Loading Styles -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
+        min-height: 100vh;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      .loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e5e7eb;
+        border-top-color: #9b87f5;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-text {
+        margin-top: 16px;
+        color: #6b7280;
+        font-size: 14px;
+      }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">FitTrack Pro wird geladen...</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

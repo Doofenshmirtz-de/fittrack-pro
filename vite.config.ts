@@ -13,7 +13,7 @@ export default defineConfig(() => ({
     react(), 
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
+      includeAssets: ['favicon.svg'],
       manifest: {
         name: 'FitTrack Pro',
         short_name: 'FitTrack',
